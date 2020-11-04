@@ -4,6 +4,7 @@
 #include "net/netstack.h"
 #include "dev/radio.h"
 #include "dev/watchdog.h"
+#include "sys/ctimer.h"
 #include "sys/clock.h"
 #include <stdio.h>
 #define DEBUG DEBUG_PRINT
@@ -18,9 +19,23 @@ int chanl;
 int value;
 int i = 0;
 
-//int buzFreq = 1000;
+// Whether buzzer is on or off
+bool buzzerOn = false;
+int buzzFreq = 500;
 
 signed short rssi = -100;
+
+
+int alarmTimer = 0;
+
+//static struct ctimer alarmTimer;
+
+// Stop alarm after 5 seconds
+void alarmCallback() {
+    printf("Stopping alarm...\n\r");
+    buzzer_stop();
+    buzzerOn = false;
+}
 
 PROCESS(zigphy_rx_process, "zigphy_rx_process");
 //PROCESS(zigphy_tx_process, "zigphy_tx_process");
@@ -46,26 +61,50 @@ PROCESS_THREAD(zigphy_rx_process, ev, data)
 	
 		sprintf(payload, "I am gay: %d", i);
 		
-		if (++i % 1000 == 0) printf("sending: %s on %d\n", payload, chanl);
+		if (i % 1000 == 0) printf("Sending: [%s] on channel %d\n\r", payload, chanl);
 		
 		NETSTACK_RADIO.send(payload, sizeof(payload)+1);
 		
 		memset(&payload, 0, sizeof(payload)+1);
 		
-		if (NETSTACK_RADIO.read((void*)buf, 48) > 0) {
-			rssi = (signed short)packetbuf_attr(PACKETBUF_ATTR_RSSI);
-			printf("received: %s, RSSI: %d on %d\n", buf, rssi, chanl);
+
+        //rssi = -100; // Set to -100 to prevent rebuzzing
+        if (buzzerOn == false) {
+		    if (NETSTACK_RADIO.read((void*)buf, 48) > 0) {
+			    rssi = (signed short)packetbuf_attr(PACKETBUF_ATTR_RSSI);
+			    printf("Received: [%s] -> RSSI: [%d] on channel %d\n\r", buf, rssi, chanl);
 			
-			// turn on buzzing
-			if ( rssi > -50){
-				buzzer_start(1000);		
+			    // turn on buzzing
+			    if (rssi >= -50){
+                    if (buzzerOn == false) {
+				        buzzer_start(buzzFreq);
+                        buzzerOn = true;
+
+                        buzzFreq += 100;
+                        //ctimer_set(&alarmTimer, CLOCK_SECOND * 5, alarmCallback, NULL);
+                        alarmTimer = 1000;
+                        printf("CLOSE CONTACT! Alarm buzzing...\r\n");
+
+                    }	
+			    }
+			    //memset(&buf, 0, sizeof(buf)+1);
+		    }
+        } else {
+            if (alarmTimer > 0) {
+                alarmTimer--;
+                if (alarmTimer == 0) {
+                    alarmCallback();
+                }
+            }
+
+		    if (NETSTACK_RADIO.read((void*)buf, 48) > 0) {
+			    rssi = (signed short)packetbuf_attr(PACKETBUF_ATTR_RSSI);
+			    if (i % 20 == 0) printf("Still received: [%s] -> RSSI: [%d] on channel %d\n\r", buf, rssi, chanl);
 			}
-			else
-			{
-				buzzer_stop();
-			}
-			memset(&buf, 0, sizeof(buf)+1);
-		}		
+        }   
+
+        i++;
+        memset(&buf, 0, sizeof(buf)+1);
 	}
 	PROCESS_END();
 }
