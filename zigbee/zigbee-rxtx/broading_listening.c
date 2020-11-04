@@ -10,6 +10,7 @@
 #define DEBUG DEBUG_PRINT
 #include "net/ip/uip-debug.h"
 #include "board-peripherals.h"
+#include <math.h>
 
 
 char buf[24];
@@ -71,17 +72,26 @@ PROCESS_THREAD(zigphy_rx_process, ev, data)
             // Receive incoming signal
 		    if (NETSTACK_RADIO.read((void*)buf, 48) > 0) {
 			    rssi = (signed short)packetbuf_attr(PACKETBUF_ATTR_RSSI);
-			    printf("Received: [%s] -> RSSI: [%d] on channel %d\n\r", buf, rssi, chanl);
+			    //printf("Received: [%s] -> RSSI: [%d] on channel %d\n\r", buf, rssi, chanl);
 			
+
+
+                float transmitted_power = 5;
+                float alpha = -9.56;
+                float constant = -32.92;    
+                float distance = 1000000 * exp((transmitted_power - rssi - constant)/alpha);
+                printf("Distance from other node = %d\n\r", (int)distance);
+
+
 			    // Turn on buzzing if too close
 			    if (rssi >= -50){
-                    if (buzzerOn == false) {
+                    /*if (buzzerOn == false) {
 				        buzzer_start(buzzFreq);
                         buzzerOn = true;
                         buzzFreq += 100;
                         alarmTimer = 1000;
                         printf("CLOSE CONTACT! Alarm buzzing...\r\n");
-                    }	
+                    }*/	
 			    }
 		    }
         
