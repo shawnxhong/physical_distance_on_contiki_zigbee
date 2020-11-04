@@ -59,36 +59,33 @@ PROCESS_THREAD(zigphy_rx_process, ev, data)
 	
 	while(1) {
 	
+        // Broadcast payload to the world
 		sprintf(payload, "I am gay: %d", i);
-		
 		if (i % 1000 == 0) printf("Sending: [%s] on channel %d\n\r", payload, chanl);
-		
 		NETSTACK_RADIO.send(payload, sizeof(payload)+1);
-		
 		memset(&payload, 0, sizeof(payload)+1);
 		
-
-        //rssi = -100; // Set to -100 to prevent rebuzzing
+        // Only receive signal if not buzzing already
         if (buzzerOn == false) {
+
+            // Receive incoming signal
 		    if (NETSTACK_RADIO.read((void*)buf, 48) > 0) {
 			    rssi = (signed short)packetbuf_attr(PACKETBUF_ATTR_RSSI);
 			    printf("Received: [%s] -> RSSI: [%d] on channel %d\n\r", buf, rssi, chanl);
 			
-			    // turn on buzzing
+			    // Turn on buzzing if too close
 			    if (rssi >= -50){
                     if (buzzerOn == false) {
 				        buzzer_start(buzzFreq);
                         buzzerOn = true;
-
                         buzzFreq += 100;
-                        //ctimer_set(&alarmTimer, CLOCK_SECOND * 5, alarmCallback, NULL);
                         alarmTimer = 1000;
                         printf("CLOSE CONTACT! Alarm buzzing...\r\n");
-
                     }	
 			    }
-			    //memset(&buf, 0, sizeof(buf)+1);
 		    }
+        
+        // Tag is already buzzing... so count down alarm timer
         } else {
             if (alarmTimer > 0) {
                 alarmTimer--;
@@ -97,6 +94,7 @@ PROCESS_THREAD(zigphy_rx_process, ev, data)
                 }
             }
 
+            // Keep receiving signal to check the RSSI
 		    if (NETSTACK_RADIO.read((void*)buf, 48) > 0) {
 			    rssi = (signed short)packetbuf_attr(PACKETBUF_ATTR_RSSI);
 			    if (i % 20 == 0) printf("Still received: [%s] -> RSSI: [%d] on channel %d\n\r", buf, rssi, chanl);
@@ -106,5 +104,7 @@ PROCESS_THREAD(zigphy_rx_process, ev, data)
         i++;
         memset(&buf, 0, sizeof(buf)+1);
 	}
+
+
 	PROCESS_END();
 }
