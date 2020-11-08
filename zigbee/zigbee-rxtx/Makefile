@@ -1,6 +1,6 @@
 DEFINES+=PROJECT_CONF_H=\"project-conf.h\"
 
-CONTIKI_PROJECT = server
+CONTIKI_PROJECT = broading_listening
 
 all: $(CONTIKI_PROJECT)
 
