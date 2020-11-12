@@ -47,9 +47,9 @@ void alarmCallback() {
 void send_record(){
 	char msg[MAX_PAYLOAD_LEN];
 	sprintf(msg, "close contact detacted");
-    uip_ipaddr_copy(&server_conn->ripaddr, &UIP_IP_BUF->srcipaddr);
+	uip_ipaddr_copy(&server_conn->ripaddr, &UIP_IP_BUF->srcipaddr);
 	uip_udp_packet_sendto(server_conn, msg, strlen(msg),&server_conn->ripaddr, UIP_HTONS(3001));
-    memset(&server_conn->ripaddr, 0, sizeof(server_conn->ripaddr));
+	memset(&server_conn->ripaddr, 0, sizeof(server_conn->ripaddr));
 }
 
 PROCESS(zigphy_rx_process, "zigphy_rx_process");
