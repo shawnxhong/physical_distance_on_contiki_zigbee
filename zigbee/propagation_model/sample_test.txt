@@ -1,3 +1,5 @@
+// the test is done based on distance range from 150 cm to 250 cm.
+
 rssi: -40, distance: 44.90924228171446 cm
 rssi: -41, distance: 47.80153708312563 cm
 rssi: -42, distance: 50.880104660323006 cm
