@@ -3,7 +3,6 @@
 #include "contiki-lib.h"
 #include "contiki-net.h"
 #include <string.h>
-#include <math.h>
 
 #define DEBUG DEBUG_PRINT
 #include "net/ip/uip-debug.h"
@@ -24,19 +23,13 @@ static void UTCtick(){
 	localUTCtime++;
 }
 
-static void updateUtcTime(uint32_t utctime){
-	localUTCtime = utctime;
-}
-
 static void sending(){
 	ctimer_reset(&sending_ctimer);
 
 	char buf[MAX_PAYLOAD_LEN];
-	uint32_t time2send = localUTCtime;
-	PRINTF("----sending: 'hello %u'\r\n", (unsigned int)time2send);
+	PRINTF("----sending: 'hello %u'\r\n", (unsigned int)localUTCtime);
 
-	// sprintf(buf, "%u", (unsigned int)time2send);
-	sprintf(buf, "hello %u", (unsigned int)time2send);
+	sprintf(buf, "hello %u", (unsigned int)localUTCtime);
   	uip_ipaddr_copy(&server_conn->ripaddr, &UIP_IP_BUF->srcipaddr);
 	uip_udp_packet_sendto(server_conn, buf, strlen(buf),&server_conn->ripaddr, UIP_HTONS(3001));
 	memset(&server_conn->ripaddr, 0, sizeof(server_conn->ripaddr));
@@ -48,7 +41,7 @@ static void tcpip_handler(void){
 	// char buf[MAX_PAYLOAD_LEN];
     ((char *)uip_appdata)[uip_datalen()] = 0;
     uint32_t *universalUTCtime = (uint32_t *)uip_appdata;
-    updateUtcTime(*universalUTCtime);
+    localUTCtime = *universalUTCtime;
 
     // PRINTF("Received: %d (RSSI: %d)\r\n", (unsigned int)*universalUTCtime, (signed short)packetbuf_attr(PACKETBUF_ATTR_RSSI));
     PRINTF("Received: %d\r\n", (unsigned int)*universalUTCtime);
