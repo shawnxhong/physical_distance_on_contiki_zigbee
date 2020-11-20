@@ -12,13 +12,6 @@
 #include "board-peripherals.h"
 #include <math.h>
 
-//prepare for connection to the server
-#define DEBUG DEBUG_PRINT
-#include "net/ip/uip-debug.h"
-#define UIP_IP_BUF   ((struct uip_ip_hdr *)&uip_buf[UIP_LLH_LEN])
-#define MAX_PAYLOAD_LEN 200
-static struct uip_udp_conn *server_conn;
-
 
 char buf[24];
 char payload[24] = "out";
@@ -45,14 +38,6 @@ void alarmCallback() {
     buzzerOn = false;
 }
 
-void send_record(){
-	char msg[MAX_PAYLOAD_LEN];
-	sprintf(msg, "close contact detacted");
-	uip_ipaddr_copy(&server_conn->ripaddr, &UIP_IP_BUF->srcipaddr);
-	uip_udp_packet_sendto(server_conn, msg, strlen(msg),&server_conn->ripaddr, UIP_HTONS(3001));
-	memset(&server_conn->ripaddr, 0, sizeof(server_conn->ripaddr));
-}
-
 PROCESS(zigphy_rx_process, "zigphy_rx_process");
 //PROCESS(zigphy_tx_process, "zigphy_tx_process");
 AUTOSTART_PROCESSES(&zigphy_rx_process);
@@ -60,10 +45,6 @@ AUTOSTART_PROCESSES(&zigphy_rx_process);
 
 PROCESS_THREAD(zigphy_rx_process, ev, data)
 {
-	//prepare for connection to the server
-	#if UIP_CONF_ROUTER
-	  uip_ipaddr_t ipaddr;
-	#endif /* UIP_CONF_ROUTER */
 
 	PROCESS_BEGIN();
 	
@@ -75,18 +56,6 @@ PROCESS_THREAD(zigphy_rx_process, ev, data)
 	//NETSTACK_RADIO.get_value(RADIO_PARAM_CHANNEL, &chanl);
 	NETSTACK_RADIO.set_value(RADIO_PARAM_CHANNEL, RADIO_CONST_CHANNEL_MAX);
 	NETSTACK_RADIO.get_value(RADIO_PARAM_CHANNEL, &chanl);
-
-	//prepare for connection to the server
-	#if UIP_CONF_ROUTER
-	  uip_ip6addr(&ipaddr, 0xaaaa, 0, 0, 0, 0, 0, 0, 0);
-	  uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
-	  uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
-	#endif /* UIP_CONF_ROUTER */
-
-	// print_local_addresses();
-	server_conn = udp_new(NULL, UIP_HTONS(0), NULL);
-	udp_bind(server_conn, UIP_HTONS(3000));
-	
 
 	while(1) {
 	
@@ -121,8 +90,6 @@ PROCESS_THREAD(zigphy_rx_process, ev, data)
                         buzzFreq += 100;
                         alarmTimer = 1000;
                         printf("CLOSE CONTACT! Alarm buzzing...\r\n");
-
-                        send_record();
                     }	
 
 			    }
