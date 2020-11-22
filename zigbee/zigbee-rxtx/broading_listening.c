@@ -18,7 +18,7 @@
 #define UIP_IP_BUF   ((struct uip_ip_hdr *)&uip_buf[UIP_LLH_LEN])
 #define MAX_PAYLOAD_LEN 200
 
-int self_ID = 666;
+int self_ID = 888;
 int other_ID;
 
 char buf[24];

@@ -20,15 +20,15 @@ bytes_to_read = 10
 
 while(1):
 #    print("---start reading")
-    data = ser.readline()
+    data = ser.readline().rstrip()
     
     if data:
-        data = data[1:]
-        time_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        # data = data[1:]
+        time_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(time_now)
-        print(data)
+        print("data: "+data)
         tag_id = data[:3]
-        print("tag id", tag_id)
+        print("tag id: "+tag_id)
         f = open('%s.txt' % tag_id, "a+")
         f.write(time_now+": ")            
         f.write(data+"\n")

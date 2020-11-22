@@ -45,7 +45,7 @@ PROCESS_THREAD(zigphy_rx_process, ev, data)
 				tag_A = atoi(token);
 				token = strtok(NULL, ":");
 				tag_B = atoi(token);
-				printf("close contact: %d-%d", tag_A, tag_B);
+				printf("%d-%d\r\n", tag_A, tag_B);
 			}
 		}
 	}
