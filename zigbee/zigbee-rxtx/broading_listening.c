@@ -12,9 +12,21 @@
 #include "board-peripherals.h"
 #include <math.h>
 
+//prepare for connection to the server
+#define DEBUG DEBUG_PRINT
+#include "net/ip/uip-debug.h"
+#define UIP_IP_BUF   ((struct uip_ip_hdr *)&uip_buf[UIP_LLH_LEN])
+#define MAX_PAYLOAD_LEN 200
+
+int self_ID = 666;
+int other_ID;
 
 char buf[24];
 char payload[24] = "out";
+char* token;
+// payload format:
+// "ID:888" : broadcasting self ID to the world
+// "HIT:888:666": report collision of self id and other ID to backend
 
 int chanl;
 int value;
@@ -24,8 +36,7 @@ int i = 0;
 bool buzzerOn = false;
 int buzzFreq = 500;
 
-signed short rssi = -100;
-
+signed short rssi = -1200;
 
 int alarmTimer = 0;
 
@@ -39,13 +50,10 @@ void alarmCallback() {
 }
 
 PROCESS(zigphy_rx_process, "zigphy_rx_process");
-//PROCESS(zigphy_tx_process, "zigphy_tx_process");
 AUTOSTART_PROCESSES(&zigphy_rx_process);
-
 
 PROCESS_THREAD(zigphy_rx_process, ev, data)
 {
-
 	PROCESS_BEGIN();
 	
 	watchdog_stop();
@@ -53,46 +61,63 @@ PROCESS_THREAD(zigphy_rx_process, ev, data)
 	NETSTACK_RADIO.set_value (RADIO_PARAM_POWER_MODE, 1);
 	NETSTACK_RADIO.set_value (RADIO_PARAM_RX_MODE, 0); //disable Address Filtering
 	
-	//NETSTACK_RADIO.get_value(RADIO_PARAM_CHANNEL, &chanl);
 	NETSTACK_RADIO.set_value(RADIO_PARAM_CHANNEL, RADIO_CONST_CHANNEL_MAX);
-	NETSTACK_RADIO.get_value(RADIO_PARAM_CHANNEL, &chanl);
+	NETSTACK_RADIO.get_value(RADIO_PARAM_CHANNEL, &chanl);	
 
 	while(1) {
-	
+	// payload format:
+	// "ID:888" : broadcasting self ID to the world
+	// "HIT:888:666": report collision of self id and other ID to backend
+		
         // Broadcast payload to the world
-		sprintf(payload, "I am gay: %d", i);
-		if (i % 1000 == 0) printf("Sending: [%s] on channel %d\n\r", payload, chanl);
+		sprintf(payload, "ID:%d", self_ID);
+		
+		if (i % 1000 == 0){
+			printf("Sending: [%s] on channel %d\n\r", payload, chanl);
+		}
+		
+		//send and clean send box
 		NETSTACK_RADIO.send(payload, sizeof(payload)+1);
 		memset(&payload, 0, sizeof(payload)+1);
 		
         // Only receive signal if not buzzing already
-        if (buzzerOn == false) {
-
+        if (buzzerOn == false) {			
+			
             // Receive incoming signal
 		    if (NETSTACK_RADIO.read((void*)buf, 48) > 0) {
-			    rssi = (signed short)packetbuf_attr(PACKETBUF_ATTR_RSSI);
-			    //printf("Received: [%s] -> RSSI: [%d] on channel %d\n\r", buf, rssi, chanl);
-			
+				
+				token = strtok(buf, ":"); // token == ID or HIT
+	
+				if (strcmp(token, "ID") == 0){
+					token = strtok(NULL, ":");
+					
+					other_ID =  atoi(token);
+					
+					rssi = (signed short)packetbuf_attr(PACKETBUF_ATTR_RSSI);
+					//printf("Received: [%s] -> RSSI: [%d] on channel %d\n\r", buf, rssi, chanl);
+					
+		            float alpha = -16.022;
+		            float constant = 20.958;    
+		            float distance = exp((rssi - constant)/alpha);
+		            printf("Distance from node %d = %d, rssi: %d\n\r", other_ID, (int)distance, rssi);
 
-
-                float transmitted_power = 5;
-                float alpha = -9.56;
-                float constant = -32.92;    
-                float distance = 1000000 * exp((transmitted_power - rssi - constant)/alpha);
-                printf("Distance from other node = %d\n\r", (int)distance);
-
-
-			    // Turn on buzzing if too close
-			    if (rssi >= -50){
-                    if (buzzerOn == false) {
-				        buzzer_start(buzzFreq);
-                        buzzerOn = true;
-                        buzzFreq += 100;
-                        alarmTimer = 1000;
-                        printf("CLOSE CONTACT! Alarm buzzing...\r\n");
-                    }	
-
-			    }
+					// Turn on buzzing if too close
+					// distance smaller than 200 cm
+					if (rssi >= -49){
+		                if (buzzerOn == false) {
+						    buzzer_start(buzzFreq);
+		                    buzzerOn = true;
+		                    buzzFreq += 100;
+		                    alarmTimer = 1000;
+		                    printf("CLOSE CONTACT! Alarm buzzing...\r\n");
+							
+							// send collision message. 
+		                    sprintf(payload, "HIT:%d:%d", self_ID, other_ID);
+		                    NETSTACK_RADIO.send(payload, sizeof(payload)+1);
+							memset(&payload, 0, sizeof(payload)+1);
+		                }
+					}
+				}	    
 		    }
         
         // Tag is already buzzing... so count down alarm timer
